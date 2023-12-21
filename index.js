@@ -1,5 +1,5 @@
-const Unifi = require("node-unifi");
-const express = require("express");
+import Unifi from "node-unifi";
+import express from "express";
 
 const { PORT, HOSTNAME, HOST_PORT, HOST_USER, HOST_PASSWORD, DEVICES } =
   process.env;
