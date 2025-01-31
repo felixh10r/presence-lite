@@ -1,37 +1,42 @@
-import Unifi from "node-unifi";
 import express from "express";
 
-const { PORT, HOSTNAME, HOST_PORT, HOST_USER, HOST_PASSWORD, DEVICES } =
-  process.env;
+const { PORT, HOSTNAME, SITE_ID, API_KEY, DEVICES } = process.env;
 
-const devices = DEVICES.split(",").map((d) => {
+const devicesByMacAddress = {};
+
+DEVICES.split(",").forEach((d) => {
   const [name, mac] = d.split("_");
 
-  return {
-    name,
-    mac,
-  };
-});
-
-const unifi = new Unifi.Controller({
-  host: HOSTNAME,
-  port: HOST_PORT,
-  sslverify: false,
+  devicesByMacAddress[mac] = name;
 });
 
 (async () => {
-  await unifi.login(HOST_USER, HOST_PASSWORD);
-
   const app = express();
 
   app.get("/presence", async function (req, res) {
     try {
-      const clientData = await unifi.getClientDevices();
+      const resp = await fetch(
+        `https://${HOSTNAME}/proxy/network/integrations/v1/sites/${SITE_ID}/clients?${new URLSearchParams(
+          {
+            limit: 200,
+          },
+        )}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": API_KEY,
+          },
+        },
+      );
+
+      const clients = (await resp.json()).data;
 
       const presence = {};
 
-      devices.forEach(({ name, mac }) => {
-        presence[name] = clientData.some((cd) => cd.mac === mac);
+      clients.forEach(({ macAddress }) => {
+        if (devicesByMacAddress[macAddress]) {
+          presence[devicesByMacAddress[macAddress]] = true;
+        }
       });
 
       res.send(presence);
